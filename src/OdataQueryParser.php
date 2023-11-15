@@ -247,6 +247,9 @@ class OdataQueryParser {
 
             if (preg_match("/([\w]+)\(([\w\s',]+)\)/", $left, $matches)) {
                 $function = $matches[1];
+                $argument = $matches[2];
+
+                $left = $argument;
                 $functionToApply = $function;
             }
 
@@ -254,10 +257,11 @@ class OdataQueryParser {
                 "left" => $left,
                 "operator" => $operator,
                 "right" => $right,
-                "function" => $functionToApply
+                "columnFunction" => $functionToApply
             ];
         }, explode("and", static::$queryStrings[static::$filterKey]));
     }
+
 
 
 	private static function setQueryParameterKeys(): void {
