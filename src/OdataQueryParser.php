@@ -243,24 +243,18 @@ class OdataQueryParser {
             $operator = static::getFilterOperatorName($items[2]);
             $right = static::getFilterRightValue($operator, $items[3]);
 
+            $functionToApply = null;
+
             if (preg_match("/([\w]+)\(([\w\s',]+)\)/", $left, $matches)) {
                 $function = $matches[1];
-                $argument = $matches[2];
-
-                $left = static::applyFunction($function, $argument);
-            }
-
-            if (preg_match("/([\w]+)\(([\w\s',]+)\)/", $right, $matches)) {
-                $function = $matches[1];
-                $argument = $matches[2];
-
-                $right = static::applyFunction($function, $argument);
+                $functionToApply = $function;
             }
 
             return [
                 "left" => $left,
                 "operator" => $operator,
-                "right" => $right
+                "right" => $right,
+                "function" => $functionToApply
             ];
         }, explode("and", static::$queryStrings[static::$filterKey]));
     }
@@ -353,38 +347,5 @@ class OdataQueryParser {
 		}
 	}
 
-    private static function applyFunction(string $function, string $argument) {
-        switch ($function) {
-            case 'concat':
-                return implode('', explode(',', $argument));
-            case 'contains':
-                return strpos($argument, ',') !== false;
-            case 'endswith':
-                list($string, $substring) = explode(',', $argument);
-                return substr($string, -strlen($substring)) === $substring;
-            case 'indexof':
-                list($string, $substring) = explode(',', $argument);
-                return strpos($string, $substring);
-            case 'length':
-                return strlen($argument);
-            case 'startswith':
-                list($string, $substring) = explode(',', $argument);
-                return strpos($string, $substring) === 0;
-            case 'substring':
-                list($string, $start, $length) = explode(',', $argument);
-                return substr($string, $start, $length);
-            case 'matchesPattern':
-                list($string, $pattern) = explode(',', $argument);
-                return preg_match($pattern, $string);
-            case 'tolower':
-                return strtolower($argument);
-            case 'toupper':
-                return strtoupper($argument);
-            case 'trim':
-                return trim($argument);
-            default:
-                throw new InvalidArgumentException("Unknown function: $function");
-        }
-    }
 
 }
