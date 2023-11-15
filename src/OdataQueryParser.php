@@ -233,27 +233,38 @@ class OdataQueryParser {
 		return explode(",", static::$queryStrings[static::$orderByKey]);
 	}
 
-	private static function getFilterValue(): array {
-		return array_map(function($and) {
-			$items = [];
+    private static function getFilterValue(): array {
+        return array_map(function($and) {
+            $items = [];
 
-			preg_match("/([\w]+)\s*(eq|ne|gt|ge|lt|le|in)\s*([\w',\(\)\s.]+)/", $and, $items);
+            preg_match("/([\w().]+)\s*(eq|ne|gt|ge|lt|le|in)\s*([\w',()\s.]+)(?=\))/", $and, $items);
 
-			$left = $items[1];
-			$operator = static::getFilterOperatorName($items[2]);
-			$right = static::getFilterRightValue($operator, $items[3]);
+            $left = $items[1];
+            $operator = static::getFilterOperatorName($items[2]);
+            $right = static::getFilterRightValue($operator, $items[3]);
 
-			/**
-			 * @todo check whether [1], [2] and [3] are set
-			 */
+            if (preg_match("/([\w]+)\(([\w\s',]+)\)/", $left, $matches)) {
+                $function = $matches[1];
+                $argument = $matches[2];
 
-			return [
-				"left" => $left,
-				"operator" => $operator,
-				"right" => $right
-			];
-		}, explode("and", static::$queryStrings[static::$filterKey]));
-	}
+                $left = static::applyFunction($function, $argument);
+            }
+
+            if (preg_match("/([\w]+)\(([\w\s',]+)\)/", $right, $matches)) {
+                $function = $matches[1];
+                $argument = $matches[2];
+
+                $right = static::applyFunction($function, $argument);
+            }
+
+            return [
+                "left" => $left,
+                "operator" => $operator,
+                "right" => $right
+            ];
+        }, explode("and", static::$queryStrings[static::$filterKey]));
+    }
+
 
 	private static function setQueryParameterKeys(): void {
 		static::$selectKey = static::getSelectKey();
@@ -341,4 +352,39 @@ class OdataQueryParser {
 			}, $values);
 		}
 	}
+
+    private static function applyFunction(string $function, string $argument) {
+        switch ($function) {
+            case 'concat':
+                return implode('', explode(',', $argument));
+            case 'contains':
+                return strpos($argument, ',') !== false;
+            case 'endswith':
+                list($string, $substring) = explode(',', $argument);
+                return substr($string, -strlen($substring)) === $substring;
+            case 'indexof':
+                list($string, $substring) = explode(',', $argument);
+                return strpos($string, $substring);
+            case 'length':
+                return strlen($argument);
+            case 'startswith':
+                list($string, $substring) = explode(',', $argument);
+                return strpos($string, $substring) === 0;
+            case 'substring':
+                list($string, $start, $length) = explode(',', $argument);
+                return substr($string, $start, $length);
+            case 'matchesPattern':
+                list($string, $pattern) = explode(',', $argument);
+                return preg_match($pattern, $string);
+            case 'tolower':
+                return strtolower($argument);
+            case 'toupper':
+                return strtoupper($argument);
+            case 'trim':
+                return trim($argument);
+            default:
+                throw new InvalidArgumentException("Unknown function: $function");
+        }
+    }
+
 }
